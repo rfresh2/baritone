@@ -39,6 +39,7 @@ import baritone.utils.GuiClick;
 import baritone.utils.InputOverrideHandler;
 import baritone.utils.PathingControlManager;
 import baritone.utils.player.BaritonePlayerContext;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.minecraft.client.Minecraft;
 
 import java.io.IOException;
@@ -58,8 +59,15 @@ public class Baritone implements IBaritone {
 
     private static final ThreadPoolExecutor threadPool;
 
-    static {
-        threadPool = new ThreadPoolExecutor(4, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>());
+    static {;
+        threadPool = new ThreadPoolExecutor(4, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>(),
+            new ThreadFactoryBuilder()
+                .setNameFormat("baritone-pool-%d")
+                // as of mc 26.2, mc will await non-daemon threads exit on game stop - crash reporting if any non-daemon thread is still alive
+                .setDaemon(true)
+                .setPriority(0)
+                .build()
+        );
     }
 
     private final Minecraft mc;
