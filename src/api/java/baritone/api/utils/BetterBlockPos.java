@@ -17,11 +17,14 @@
 
 package baritone.api.utils;
 
-import javax.annotation.Nonnull;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Math;
+
+import javax.annotation.Nonnull;
 
 /**
  * A better BlockPos that has fewer hash collisions (and slightly more performant offsets)
@@ -222,6 +225,10 @@ public final class BetterBlockPos extends BlockPos {
         double dy = (double) this.y - to.y;
         double dz = (double) this.z - to.z;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    public Vec3 getCenter() {
+        return Vec3.atCenterOf(this);
     }
 
     @Override

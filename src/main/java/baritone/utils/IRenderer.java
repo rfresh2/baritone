@@ -22,12 +22,13 @@ import baritone.api.Settings;
 import baritone.utils.accessor.IEntityRenderManager;
 import baritone.utils.accessor.IRenderPipelines;
 import baritone.utils.accessor.IRenderType;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DestFactor;
-import com.mojang.blaze3d.platform.SourceFactor;
+import com.mojang.blaze3d.platform.BlendFactor;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -42,15 +43,14 @@ import java.util.Optional;
 
 public interface IRenderer {
 
-    Tesselator tessellator = Tesselator.getInstance();
     IEntityRenderManager renderManager = (IEntityRenderManager) Minecraft.getInstance().getEntityRenderDispatcher();
     Settings settings = BaritoneAPI.getSettings();
     RenderPipeline.Snippet BARITONE_LINES_SNIPPET = RenderPipeline.builder(((IRenderPipelines) new RenderPipelines()).getLinesSnippet())
         .withColorTargetState(new ColorTargetState(new BlendFunction(
-            SourceFactor.SRC_ALPHA,
-            DestFactor.ONE_MINUS_SRC_ALPHA,
-            SourceFactor.ONE,
-            DestFactor.ZERO
+            BlendFactor.SRC_ALPHA,
+            BlendFactor.ONE_MINUS_SRC_ALPHA,
+            BlendFactor.ONE,
+            BlendFactor.ZERO
         )))
         .withDepthStencilState(Optional.empty())
         .withCull(false)
@@ -61,8 +61,8 @@ public interface IRenderer {
         RenderSetup.builder(RenderPipeline.builder(BARITONE_LINES_SNIPPET)
             .withLocation("pipelines/baritone_lines_with_depth")
             .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withPrimitiveTopology(PrimitiveTopology.LINES)
             .build())
-            .bufferSize(256)
             .createRenderSetup()
     );
     RenderType linesNoDepthRenderType = ((IRenderType) RenderTypes.lines()).createRenderType(
@@ -70,12 +70,13 @@ public interface IRenderer {
         RenderSetup.builder(RenderPipeline.builder(BARITONE_LINES_SNIPPET)
                 .withLocation("pipelines/baritone_lines_no_depth")
                 .withDepthStencilState(Optional.empty())
+                .withPrimitiveTopology(PrimitiveTopology.LINES)
                 .build())
-            .bufferSize(256)
             .createRenderSetup()
     );
 
     float[] color = new float[]{1.0F, 1.0F, 1.0F, 255.0F};
+    ByteBufferBuilder byteBufferBuilder = new ByteBufferBuilder(DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH.getVertexSize() * 12 * 2);
 
     static void glColor(Color color, float alpha) {
         float[] colorComponents = color.getColorComponents(null);
@@ -87,7 +88,8 @@ public interface IRenderer {
 
     static BufferBuilder startLines(Color color, float alpha) {
         glColor(color, alpha);
-        return tessellator.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH);
+        byteBufferBuilder.clear();
+        return new BufferBuilder(byteBufferBuilder, PrimitiveTopology.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH);
     }
 
     static BufferBuilder startLines(Color color) {
@@ -95,12 +97,14 @@ public interface IRenderer {
     }
 
     static void endLines(BufferBuilder bufferBuilder, boolean ignoredDepth) {
-        MeshData meshData = bufferBuilder.build();
-        if (meshData != null) {
-            if (ignoredDepth) {
-                linesNoDepthRenderType.draw(meshData);
-            } else {
-                linesWithDepthRenderType.draw(meshData);
+        try (MeshData meshData = bufferBuilder.build()) {
+            if (meshData != null) {
+                var vertexBuffer = RenderSystem.getDevice().createBuffer(() -> "Baritone Lines", 32, meshData.vertexBuffer());
+                var autoStorageIndexBuffer = RenderSystem.getSequentialBuffer(PrimitiveTopology.LINES);
+                var indexBuffer = autoStorageIndexBuffer.getBuffer(meshData.drawState().indexCount());
+                RenderType lineRenderType = ignoredDepth ? linesNoDepthRenderType : linesWithDepthRenderType;
+                lineRenderType.prepare().drawFromBuffer(vertexBuffer, indexBuffer, autoStorageIndexBuffer.type(), 0, 0, meshData.drawState().indexCount());
+                vertexBuffer.close();
             }
         }
     }

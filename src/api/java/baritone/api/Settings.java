@@ -248,7 +248,7 @@ public final class Settings {
     /**
      * blocks that baritone shouldn't break, but can if it needs to.
      */
-    public final Setting<List<Block>> blocksToAvoidBreaking = new Setting<>(new ArrayList<>(Arrays.asList( // TODO can this be a HashSet or ImmutableSet?
+    public final Setting<List<Block>> blocksToAvoidBreaking = new Setting<>(new ArrayList<>(java.util.Arrays.asList( // TODO can this be a HashSet or ImmutableSet?
             Blocks.CRAFTING_TABLE,
             Blocks.FURNACE,
             Blocks.CHEST,
@@ -1273,7 +1273,7 @@ public final class Settings {
     @JavaOnly
     public final Setting<Consumer<Component>> logger = new Setting<>((msg) -> {
         try {
-            Minecraft.getInstance().gui.getChat().addClientSystemMessage(msg);
+            Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(msg);
         } catch (Throwable t) {
             LOGGER.warn("Failed to log message to chat: " + msg.getString(), t);
         }
