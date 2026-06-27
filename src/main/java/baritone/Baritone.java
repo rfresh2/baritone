@@ -65,7 +65,6 @@ public class Baritone implements IBaritone {
                 .setNameFormat("baritone-pool-%d")
                 // as of mc 26.2, mc will await non-daemon threads exit on game stop - crash reporting if any non-daemon thread is still alive
                 .setDaemon(true)
-                .setPriority(0)
                 .build()
         );
     }
